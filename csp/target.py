@@ -1,4 +1,10 @@
 # coding:UTF-8
+'''
+   @author:leedom
+
+   Created on Tue Jan 15 09:47:46 2019
+   description: 框住目标色块
+'''
 import cv2  # cv2是opencv官方的一个扩展库，里面含有各种有用的函数以及进程，opencv是一个基于开源发行的跨平台计算机视觉库，它轻量级而且高效
 import numpy as np  # Numeric Python，它是由一个多维数组对象和用于处理数组的例程集合组成的库。Numpy拥有线性代数和随机数生成的内置函数
 #对于数组的操作后期还要了解，几个维度？

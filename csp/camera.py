@@ -1,3 +1,9 @@
+'''
+   @author:leedom
+
+   Created on Tue Jan 15 09:49:20 2019
+   description:摄像头调用程序,让其一直读取画面,让另一程序持续运行返回角度和距离
+'''
 import cv2 
 import numpy as np 
 import sample

@@ -1,4 +1,10 @@
 # coding:UTF-8
+'''
+   @author:leedom
+
+   Created on Tue Jan 15 18:58:46 2019
+   description:远传项目最终图像处理终版
+'''
 import cv2  
 import numpy as np  
 from skimage import draw
@@ -43,16 +49,10 @@ class Detect:
             mask_red = mask1
         else:
             mask_red = mask2
-        # mask = np.logical_or(mask_blue,mask_red) + 0
-        # mask = mask.astype(np.uint8)
-        # print(mask.dtype)
-        # print(mask_red.dtype)
         #对图像进行与操作，并且有个掩膜的说法，得到更精确的图像轮廓
         blue = cv2.bitwise_and(self.work_hsv,self.work_hsv,mask = mask_blue)
         red = cv2.bitwise_and(self.work_hsv, self.work_hsv, mask=mask_red)
-        # red = self.work_hsv * mask
-        # cv2.imshow('blue',blue)
-        # cv2.imshow('red',red)
+
         return red,blue  # 变成黑白图片
  
     # 形态学处理
@@ -66,7 +66,6 @@ class Detect:
         _, thresh = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         _blue,blue_thresh = cv2.threshold(blue_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         #做一些形态学操作,去一些小物体干扰，这是个边缘检测算法
-        #img_morph = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, (3, 3))
         se = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
         #进行腐蚀膨胀，处理后的图片黑白分明，效果明显更优
         img_morph = cv2.dilate(thresh, se)
@@ -79,11 +78,12 @@ class Detect:
         blue_morph = cv2.erode(blue_morph,blue_se)
         blue_morph = cv2.erode(blue_morph, blue_se, iterations = 1)
         blue_morph = cv2.dilate(blue_morph,blue_se, iterations = 1)
-        # cv2.imshow('red',img_morph)
         return img_morph,blue_morph 
 
     # 矩形四角点提取,矩形的边缘点以及宽度反馈出来了
     def key_points_tap(self, img, blue):
+        red_heights = []
+        blue_heights = []
         red_points = []
         red_widths = []
         blue_points = []
@@ -99,8 +99,6 @@ class Detect:
             flag = 2       #两个异常
         elif len(cnts) !=0 and len(blues) != 0:
             flag = 1
-            # cnt_list = sorted(cnts,key=cv2.contourArea, reverse=True)
-            # cnt_list = []
             if len(cnts) >= 3:
                 length = 3
             else:
@@ -108,24 +106,12 @@ class Detect:
             for i in range(length):
                 cnt_one =sorted(cnts,key=cv2.contourArea, reverse=True)[i]
                 box = cv2.minAreaRect(cnt_one)
+                height = box[1][1]
                 width = box[1][0]
                 red_points.append(np.intc(cv2.boxPoints(box)))
                 red_widths.append(width)
-            # cnt_first = sorted(cnts, key=cv2.contourArea, reverse=True)[0]
-            # cnt_second = sorted(cnts, key=cv2.contourArea, reverse=True)[1]
-            # cnt_third = sorted(cnts, key=cv2.contourArea, reverse=True)[2]
-            # box = cv2.minAreaRect(cnt_first)
-            # box2 = cv2.minAreaRect(cnt_second)
-            # box3 = cv2.minAreaRect(cnt_third)
-            # width = box[1][0]
-            # width2 = box2[1][0]
-            # width3 = box3[1][0]
-            # red_points.append(np.intc(cv2.boxPoints(box)))
-            # red_points.append(np.intc(cv2.boxPoints(box2)))
-            # red_points.append(np.intc(cv2.boxPoints(box3)))
-            # red_widths.append(width)
-            # red_points.append(width2)
-            # red_points.append(width3)
+                red_heights.append(height)
+
             if len(blues) >= 3:
                 blue_length = 3
             else:
@@ -133,25 +119,12 @@ class Detect:
             for i in range(blue_length):
                 cnt_two =sorted(blues,key=cv2.contourArea, reverse=True)[i]
                 blue_box = cv2.minAreaRect(cnt_two)
+                blue_height = blue_box[1][1]
                 blue_width = blue_box[1][0]
                 blue_points.append(np.intc(cv2.boxPoints(blue_box)))
                 blue_widths.append(blue_width)
-            # blue_first = sorted(blues, key=cv2.contourArea, reverse=True)[0]
-            # blue_second = sorted(blues, key= cv2.contourArea,reverse=True)[1]
-            # blue_third = sorted(blues, key=cv2.contourArea, reverse = True)[2]
-            # #找轮廓的最小外接矩形((point), (w, h))
-            # blue_box = cv2.minAreaRect(blue_first)
-            # blue_box2 = cv2.minAreaRect(blue_second)
-            # blue_box3 = cv2.minAreaRect(blue_third)
-            # blue_width = blue_box[1][0]
-            # blue_width2 = blue_box2[1][0]
-            # blue_width3 = blue_box3[1][0]
-            # blue_points.append(np.intc(cv2.boxPoints(blue_box)))
-            # blue_points.append(np.intc(cv2.boxPoints(blue_box2)))
-            # blue_points.append(np.intc(cv2.boxPoints(blue_box3)))
-            # blue_widths.append(blue_width)
-            # blue_widths.append(blue_width2)
-            # blue_widths.append(blue_width3)
+                blue_heights.append(blue_height)
+
         else:
             if len(cnts) != 0:
                 if len(cnts) >= 3:
@@ -162,8 +135,10 @@ class Detect:
                     cnt_one =sorted(cnts,key=cv2.contourArea, reverse=True)[i]
                     box = cv2.minAreaRect(cnt_one)
                     width = box[1][0]
+                    height = box[1][1]
                     red_points.append(np.intc(cv2.boxPoints(box)))
                     red_widths.append(width)
+                    red_heights.append(height)
                     flag = 'blue'           
             if len(blues) != 0:
                 if len(blues) >= 3:
@@ -173,18 +148,20 @@ class Detect:
                 for j in range(blue_length):
                     cnt_two =sorted(blues,key=cv2.contourArea, reverse=True)[j]
                     blue_box = cv2.minAreaRect(cnt_two)
+                    blue_height = blue_box[1][1]
                     blue_width = blue_box[1][0]
                     blue_points.append(np.intc(cv2.boxPoints(blue_box)))
                     blue_widths.append(blue_width)
+                    blue_heights.append(blue_height)
                     flag = 'red'
         if flag == 2:
-            return -1,-1,0,0,2
+            return -1,-1,0,0,0,0,2
         elif flag == 'red':
-            return -1,blue_points,0, blue_widths,'red'
+            return -1,blue_points,0, blue_widths,0,blue_heights,'red'
         elif flag == 'blue':
-            return red_points,-1,red_widths,0,'blue'
+            return red_points,-1,red_widths,0,red_heights,0,'blue'
         else:
-            return red_points,blue_points,red_widths,blue_widths,0
+            return red_points,blue_points,red_widths,blue_widths,red_heights, blue_heights,0
 
     # 画出关键轮廓的最校外接矩形,该函数的返回值貌似没啥用了，主要的画框已经在内部做完了
     def key_cnt_draw(self, points):
@@ -203,10 +180,8 @@ class Detect:
         rows, cols = self.work_img.shape[:2]
         img_center_x, img_center_y = cols / 2, rows / 2
         if img_center_x >= center[0]:
-            # print('right')
             return True
         else:
-            # print('left')
             return False
         
   
@@ -229,7 +204,7 @@ class Detect:
                 key_x = a
                 key_y = b
             else:
-                print('no change')
+                pass
         return distance, key_x, key_y
 
     #计算两个中心点之间的距离
@@ -270,6 +245,26 @@ class Detect:
                 return distance,(-1)*result
         else:
             return -1,-1
+    def score(self, red_points,blue_points,red_width,blue_width,red_height,blue_height,center_distance):
+        red_area = red_width * red_height
+        blue_area = blue_width * blue_height
+        S = 13000
+        a1 = 1/4 * (red_area + blue_area)
+        a2 = 0.2 * (red_height+blue_height)
+        a3 =  1/2 * S * S
+        index1 = abs(red_area - blue_area) * 1 
+        index2 = 1 * abs(center_distance*2-red_height-blue_height)
+        index3 = 1 * abs((S-red_area) * (S-blue_area))
+        csp = [ index1 > 0 , index1 < a1,index2 > 0 , index2 < a2,index3 > 0 , index3 < a3 ]
+
+        if index1 > 0 and index1 < a1 and index2 > 0 and index2 < a2 and index3 > 0 and index3 < a3 :
+            return index1+index2+index3
+        else:
+            return 11111111110000000000000000000000000000
+
+
+
+        
 
     # 运行主函数
     def img_process_main(self,count):
@@ -277,15 +272,14 @@ class Detect:
         start = datetime.datetime.now()   
         # 找到红色区域
         red, blue = self.color_area()
-        # cv2.imshow('red',red)
         # 处理得到一个比较好的二值图
         img_morph, blue_morph = self.good_thresh_img(red,blue)
         # 获取矩形框的四个关键点
-        red_points,blue_points,red_width, blue_width,flag= self.key_points_tap(img_morph, blue_morph)
+        red_points,blue_points,red_width, blue_width,red_height,blue_height,flag= self.key_points_tap(img_morph, blue_morph)
         
         min_distance = 0
-        num1 = 0
-        num2 = 0
+        num1 = -1
+        num2 = -1
         key_length = 0  #距离初始化为０
         key_angle = 0  #角度初始化为０
         good = False
@@ -293,173 +287,108 @@ class Detect:
             pass
         elif flag == 'blue':       
             red_center = self.center_point_cal(red_points[0])          #红色区域中心点
-            # print('红色中心点：',red_center)
+
             red_flag_right_left = self.right_or_left(red_points[0],red_center)
             red_distance = self.distance(red_points[0])
-            # print('图片中物体的像素宽度：',red_width)
+
             cv2.drawContours(self.work_img, [red_points[0]], -1, (0,0,255), 2)
-            red_length,red_angle = self.get_Angle_Distance(red_width[0],red_distance[0],red_flag_right_left)
+            red_length,red_angle = self.get_Angle_Distance(red_height[0],red_distance[0],red_flag_right_left)
             text1 = 'red_length:' + str(round(red_length,2))
             cv2.putText(self.work_img, text1, (self.work_img.shape[1]-450,self.work_img.shape[0]-70), cv2.FONT_HERSHEY_SIMPLEX, 2.0, (0, 0, 255), 3)
             text2 = "red_angle:" + str(round(red_angle,2))
             cv2.putText(self.work_img, text2, (self.work_img.shape[1]-400,self.work_img.shape[0]-20),cv2.FONT_HERSHEY_SIMPLEX,2.0,(0,0,255),3)
         elif flag == 'red':
             blue_center = self.center_point_cal(blue_points[0])
-            # print('蓝色中心点:',blue_center)
             blue_flag_right_left = self.right_or_left(blue_points[0],blue_center)
             blue_distance = self.distance(blue_points[0])
             cv2.drawContours(self.work_img, [blue_points[0]], -1, (255,0,0), 2)
-            blue_length,blue_angle = self.get_Angle_Distance(blue_width[0],blue_distance[0],blue_flag_right_left)
+            blue_length,blue_angle = self.get_Angle_Distance(blue_height[0],blue_distance[0],blue_flag_right_left)
             text1 = 'blue_length:' + str(round(blue_length,2))
             cv2.putText(self.work_img, text1, (self.work_img.shape[1]-450,self.work_img.shape[0]-70), cv2.FONT_HERSHEY_SIMPLEX, 2.0, (0, 0, 255), 3)
             text2 = "blue_angle:" + str(round(blue_angle,2))
             cv2.putText(self.work_img, text2, (self.work_img.shape[1]-400,self.work_img.shape[0]-20),cv2.FONT_HERSHEY_SIMPLEX,2.0,(0,0,255),3)
         else:
+            min_score = 1000000000000
+            
             for i in range(len(red_points)):
                 for j in range(len(blue_points)):
-                    two_length = red_width[i] / 2 + blue_width[j] / 2
                     red_center = self.center_point_cal(red_points[i])
                     blue_center = self.center_point_cal(blue_points[j])
-                    # print('进入第三种判断')
-                    red_flag = self.right_or_left(red_points,red_center)
-                    blue_flag = self.right_or_left(blue_points, blue_center)
-                    red_distance = self.distance(red_points[i])
-                    blue_distance = self.distance(blue_points[j])
-                    red_flag_right_left = self.right_or_left(red_points[i],red_center)
-                    red_length,red_angle = self.get_Angle_Distance(red_width[i],red_distance[0],red_flag_right_left)
-                    # print('red_length',red_length)
-                    # print('red_angle',red_angle)
-                    blue_flag_right_left = self.right_or_left(blue_points[j],blue_center)
-                    blue_length,blue_angle = self.get_Angle_Distance(blue_width[j],blue_distance[0],blue_flag_right_left)
-                    # print('blue_length',blue_length)
-                    # print('blue_angle',blue_angle)
-                
-                    if red_width[i] > 2*blue_width[j] :
-                        # cv2.drawContours(self.work_img, [red_points[i]], -1, (0,0,255), 2)
-                        text2 = 'only red'
-                        # cv2.putText(self.work_img, text2, (self.work_img.shape[1]-300,self.work_img.shape[0]-120),cv2.FONT_HERSHEY_SIMPLEX,2.0,(0,0,255),3)             
-                    elif blue_width[j] > 2*red_width[i]:
-                        # cv2.drawContours(self.work_img, [[blue_points[j]]], -1,(255,0,0),2)
-                        text2 = 'only blue'
-                        # cv2.putText(self.work_img, text2, (self.work_img.shape[1]-300,self.work_img.shape[0]-120),cv2.FONT_HERSHEY_SIMPLEX,2.0,(255,0,0),3)
-                    else:
-                        #需要判断两个点之间的距离关系
-                        aim_distance = self.centerDistance(red_center, blue_center)
-                        if i ==0 and j == 0:
-                            min_distance = aim_distance
-                            num1 = i
-                            num2 = j
-                            if aim_distance < 1.2 * two_length:
-                                good = True
-                        if aim_distance < 1.2*two_length and aim_distance < min_distance :
-                            good = True
-                            min_distance = aim_distance
-                            num1 = i
-                            num2 = j
+                    center_distance = self.centerDistance(red_center,blue_center)
+
+                    score = self.score(red_points[i],blue_points[j],red_width[i],blue_width[j],red_height[i],blue_height[j],center_distance)
+                    if score < min_score:
+                        min_score = score
+                        num1 = i
+                        num2 = j     
+      
             if num1 == -1 or num2 == -1:
-                print('说明只有某一种情况,显示未找到临近的红蓝色块')
                 cv2.putText(self.work_img, 'no aim', (self.work_img.shape[1]-300,self.work_img.shape[0]-120),cv2.FONT_HERSHEY_SIMPLEX,2.0,(255,0,0),3)
-            else:
-                if good == False:
-                    cv2.putText(self.work_img, 'no aim', (self.work_img.shape[1]-300,self.work_img.shape[0]-120),cv2.FONT_HERSHEY_SIMPLEX,2.0,(255,0,0),3)
-                else:
-                    #找到了最近的红色区块和蓝色区块
-                    two_length = red_width[i] / 2 + blue_width[j] / 2
-                    red_center = self.center_point_cal(red_points[i])
-                    blue_center = self.center_point_cal(blue_points[j])
-                    # print('进入第三种判断')
-                    red_flag = self.right_or_left(red_points,red_center)
-                    blue_flag = self.right_or_left(blue_points, blue_center)
-                    red_distance = self.distance(red_points[i])
-                    blue_distance = self.distance(blue_points[j])
-                    red_flag_right_left = self.right_or_left(red_points[i],red_center)
-                    red_length,red_angle = self.get_Angle_Distance(red_width[i],red_distance[0],red_flag_right_left)
-                    # print('red_length',red_length)
-                    # print('red_angle',red_angle)
-                    blue_flag_right_left = self.right_or_left(blue_points[j],blue_center)
-                    blue_length,blue_angle = self.get_Angle_Distance(blue_width[j],blue_distance[0],blue_flag_right_left)
-                    max_x = -1
-                    max_y = -1
-                    array1 = []
-                    array2 = []
-                    array3=[]
-                    array4 = []               
-                    for item in red_points[i]:
-                        array1.append(item[0])
-                        array2.append(item[1])
-                    for item2 in blue_points[j]:
-                        array1.append(item2[0])
-                        array2.append(item2[1])
-                    array1.sort()
-                    array2.sort()            
-                    array = []
-                    x_min = array1[0]
-                    y_min = array2[0]
-                    x_max = array1[-1]
-                    y_max = array2[-1]
-                    max1 = []
-                    max1.append(x_min)
-                    max1.append(y_min)
-                    array.append(max1)
-                    max2 = []
-                    max2.append(x_min)
-                    max2.append(y_max)
-                    array.append(max2)
-                    max4 = []
-                    max4.append(x_max)
-                    max4.append(y_max)
-                    array.append(max4)
-                    max3 = []
-                    max3.append(x_max)
-                    max3.append(y_min)
-                    array.append(max3)
-                    # print('red_length')
-                    key_center = self.center_point_cal(np.array(array))
-                    key_position = self.right_or_left(np.array(array),key_center)
-                    key_length,key_angle = self.get_Angle_Distance(blue_width[j]+red_width[i],blue_distance[0]+red_distance[0],key_position)
-                    
-                    cv2.drawContours(self.work_img, [red_points[i]], -1, (0,0,255), 2)
-                    cv2.drawContours(self.work_img, [blue_points[j]], -1,(255,0,0),2)
-                    cv2.drawContours(self.work_img, [np.array(array)], -1,(0,255,0),2)
+            else:      
+                #找到了最近的红色区块和蓝色区块
+                two_length = red_width[num1] / 2 + blue_width[num2] / 2
+                red_center = self.center_point_cal(red_points[num1])
+                blue_center = self.center_point_cal(blue_points[num2])
+        
+                red_flag = self.right_or_left(red_points,red_center)
+                blue_flag = self.right_or_left(blue_points, blue_center)
+                red_distance = self.distance(red_points[num1])
+                blue_distance = self.distance(blue_points[num2])
+                red_flag_right_left = self.right_or_left(red_points[num1],red_center)
+                red_length,red_angle = self.get_Angle_Distance(red_width[num1],red_distance[0],red_flag_right_left)
+
+                blue_flag_right_left = self.right_or_left(blue_points[num2],blue_center)
+                blue_length,blue_angle = self.get_Angle_Distance(blue_width[num2],blue_distance[0],blue_flag_right_left)
+                max_x = -1
+                max_y = -1
+                array1 = []
+                array2 = []
+                array3=[]
+                array4 = []               
+                for item in red_points[num1]:
+                    array1.append(item[0])
+                    array2.append(item[1])
+                for item2 in blue_points[num2]:
+                    array1.append(item2[0])
+                    array2.append(item2[1])
+                array1.sort()
+                array2.sort()            
+                array = []
+                x_min = array1[0]
+                y_min = array2[0]
+                x_max = array1[-1]
+                y_max = array2[-1]
+                max1 = []
+                max1.append(x_min)
+                max1.append(y_min)
+                array.append(max1)
+                max2 = []
+                max2.append(x_min)
+                max2.append(y_max)
+                array.append(max2)
+                max4 = []
+                max4.append(x_max)
+                max4.append(y_max)
+                array.append(max4)
+                max3 = []
+                max3.append(x_max)
+                max3.append(y_min)
+                array.append(max3)
+                key_center = self.center_point_cal(np.array(array))
+                key_position = self.right_or_left(np.array(array),key_center)
+                key_length,key_angle = self.get_Angle_Distance(blue_width[num2]+red_width[num1],blue_distance[0]+red_distance[0],key_position)
+                
+                cv2.drawContours(self.work_img, [red_points[num1]], -1, (0,0,255), 2)
+                cv2.drawContours(self.work_img, [blue_points[num2]], -1,(255,0,0),2)
+                cv2.drawContours(self.work_img, [np.array(array)], -1,(0,255,0),2)
                    
-        # # 显示图像        1
-        cv2.imshow('ori', self.work_img)
-        # cv2.imwrite('./img/'+str(count) + '.jpg',self.work_img) #存储为图像
-        # print(self.work_img.shape)  
         end = datetime.datetime.now()
         time = (end - start).microseconds
-        print('time:%dus'%(time))
         return key_length,key_angle
-
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-
 
 if __name__ == '__main__':
     root_path = '../image'    #实际图片存放的位置
     img_path = root_path + '/chao.jpg'
     d = Detect(img_path)
-    # start = datetime.datetime.now()
     d.img_process_main()
-    # end = datetime.datetime.now()
-    # print((start-end).seconds)
 
-'''
-cv2是opencv官方的一个扩展库，里面含有各种有用的函数以及进程，opencv是一个基于开源发行的跨平台计算机视觉库，
-它轻量级而且高效
-Numeric Python，它是由一个多维数组对象和用于处理数组的例程集合组成的库。Numpy拥有线性代数和随机数生成的内置函数
-#cv2.imread(文件名，属性) 读入图像
-#cv2.imshow(窗口名，图像文件) 显示图像
-#cv2.cvtColor颜色空间转换函数
-#cv2.resize图像缩放函数
-
-# 原始图像信息 self.ori_img = cv2.imread(path)
-
-# aim_point = (distance[1],distance[2])       #得到离中心最近的点
-
-# 找到矩形中心点
-# rect_center_point = self.center_point_cal(points)
-# 画出关键轮廓（调试用,并没有什么卯月）
-# cnt_img = self.key_cnt_draw(points)
-# aim_img = self.photo_Handle(cnt_img,aim_point)
-'''
